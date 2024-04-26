@@ -5,6 +5,8 @@ from skimage.measure import regionprops
 import numpy as np
 from sympy.physics.control.control_plots import plt
 from torchvision.transforms import ToTensor
+from torch_geometric.nn import GCNConv, global_mean_pool
+
 
 def image_to_graph(image_path):
     # Read and normalize the image
@@ -36,3 +38,18 @@ def image_to_graph(image_path):
 
     return node_features, edge_index
 
+class ImageGNN(torch.nn.Module):
+    def __init__(self, feature_size, hidden_size, num_classes):
+        super(ImageGNN, self).__init__()
+        self.conv1 = GCNConv(feature_size, hidden_size)
+        self.conv2 = GCNConv(hidden_size, hidden_size)
+        self.out = torch.nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x, edge_index, batch_index):
+        x = self.conv1(x, edge_index)
+        x = torch.relu(x)
+        x = self.conv2(x, edge_index)
+        x = torch.relu(x)
+        x = global_mean_pool(x, batch_index)  # Aggregate features from all nodes
+        x = self.out(x)
+        return x
